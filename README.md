@@ -1,43 +1,24 @@
-# My Build Archive — scroll-driven freight experience
+# My Build Archive — freight & logistics, scroll-driven
 
-A cinematic, scroll-controlled logistics website. Scroll down and a reach stacker lifts a container onto a
-**MY BUILD ARCHIVE** truck, the truck drives into a dark road with the services, "Reliability at every milestone"
-doors slide open onto an ocean with a top-down container ship, then a cargo plane flies through the clouds.
+A premium, pure HTML/CSS/vanilla-JS scroll experience (no build step). Every image on the page is a real photograph, upscaled 4× with Real-ESRGAN, cut out and colour-graded into one cinematic look, with the **MY BUILD ARCHIVE** branding painted onto the truck cab, containers and ship's bridge.
 
-Pure HTML / CSS / vanilla JS — no build step, no dependencies. Open `index.html` or serve the folder
-(e.g. enable **GitHub Pages** on `main` / root).
+## The journey (scroll)
+1. **Sky loader → hero** — "WE MOVE FREIGHT. WE OWN THE OUTCOME." with the real highway photo.
+2. **Yard** — reach stacker grips the grey container beside the blue/red stack, lifts it, carries it over and lowers it onto the truck.
+3. **Truck drive #1** — the truck pulls out; the dark city-interchange scene wipes in right behind its rear.
+4. **Services** — Customs brokerage · Warehousing and 3PL · Project cargo · Domestic & interstate transport.
+5. **Truck drive #2** — it crosses again and the **"Reliability at every milestone"** doors wipe in; they slide open on the real-time tracking card.
+6. **Sea** — real top-down container ship zooms out: *"Logistics that works as hard as you do."* with ripple reflection and live foam.
+7. **Truck drive #3** — the truck crosses once more and wipes in the clouds.
+8. **Air** — cargo jet through the clouds with a tiny ship far below, then loop back to the sky.
+9. Fleet photo cards (tilt on hover) → instant quote + CO₂ calculator → live shipment tracker → CTA with confetti.
 
-## Scenes
-| Scroll | Scene |
-|---|---|
-| 0 – 7 % | Sky loader → hero: *We move freight. We own the outcome.* |
-| 7 – 28 % | Reach stacker picks the grey container off the stack and lowers it onto the truck |
-| 28 – 46 % | Truck drives off, road floods dark, 4 services: customs, warehousing & 3PL, project cargo, domestic & interstate |
-| 46 – 64 % | *Reliability at every milestone* — two pages open like doors, live-tracking card, counting stats |
-| 60 – 85 % | Ocean: zoom out from container rows to the whole ship, foam wake, rippling reflection text |
-| 82 – 96 % | Clouds + air-cargo plane, tiny ship far below |
-| after | Quote calculator, shipment tracker, confetti CTA, loop back to start |
+## Extras
+Rain toggle (R) · synthesized engine / sea / wind / horn audio (S) · click the truck or press H to honk · auto-tour (Space) · chapter rail · cursor spotlight · mobile layout.
+(Day/night mode was removed — the page uses the daylight cream look from the reference.)
 
-## Extras beyond the original
-- **Honk the truck** (click it or press `H`) — synthesized WebAudio horn, speech bubble, confetti every 5th honk
-- **Sound** (`S`) — procedural engine, sea and wind ambience that follow the scene
-- **Night mode** (`N`) — dark theme + truck headlights; **Rain** (`R`) — particle rain overlay
-- **Auto tour** (`Space` or "Watch the journey") — cinematic auto-scroll; any input stops it
-- Chapter rail, scroll progress bar, cursor spotlight in the dark scene, mouse parallax
-- **Instant quote + CO₂e estimate** (road / sea / air) and **live shipment tracker** with animated route (demo data)
-- Fully responsive (desktop → phone) and respects `prefers-reduced-motion`
+## Images (`/images`)
+All `.webp`. Cut-outs have alpha: `truck`, `truck-loaded`, `stacker`, `cont-grey|blue|red`, `plane`, `ship-cut`. Full-bleed: `ship`, `bow`, `port`, `clouds`, `sea`, `road`, `interchange`, `fleet`.
 
-## Real photos
-The scenes are drawn in SVG so they work offline, but three **photo slots** layer real photography on top when present.
-Drop files into `images/` (any landscape JPG, ~1600px wide):
-
-| File | Used for |
-|---|---|
-| `images/road.jpg` | hero thumbnail (aerial highway) |
-| `images/ocean.jpg` | blended over the water in the ship scene |
-| `images/clouds.jpg` | blended over the sky in the plane scene |
-
-Missing files are skipped silently (the generated art shows instead).
-
-## Notes
-Stats, tracking data and prices are placeholders for demonstration only.
+## Run
+Open `index.html`, or serve the folder (`python3 -m http.server`).

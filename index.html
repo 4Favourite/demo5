@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="images/truck.webp">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,28 +26,27 @@
 <header class="nav">
   <a class="logo" href="#top" data-goto="0"><span class="mark"></span><b>MY BUILD</b> ARCHIVE</a>
   <nav class="links">
-    <a href="#" data-goto="0.34">Services</a>
-    <a href="#" data-goto="0.5">Reliability</a>
-    <a href="#" data-goto="0.7">Sea</a>
-    <a href="#" data-goto="0.88">Air</a>
+    <a href="#" data-goto="0.39">Services</a>
+    <a href="#" data-goto="0.56">Reliability</a>
+    <a href="#" data-goto="0.72">Sea</a>
+    <a href="#" data-goto="0.92">Air</a>
+    <a href="#fleet">Fleet</a>
     <a href="#tools">Tools</a>
   </nav>
   <a class="btn btn-sm" href="#tools" id="navQuote">Get a quote</a>
 </header>
 
-<!-- chapter rail -->
 <nav class="rail" id="rail" aria-label="Chapters"></nav>
 
-<!-- HUD -->
+<!-- HUD: sound · rain · tour -->
 <div class="hud" id="hud">
   <button class="hbtn" id="bSound" title="Sound (S)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="w" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none"/></svg></button>
-  <button class="hbtn" id="bNight" title="Night mode (N)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg></button>
   <button class="hbtn" id="bRain" title="Rain (R)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 8a3.5 3.5 0 0 1 0 7H7z" fill="none"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" fill="none"/></svg></button>
   <button class="hbtn" id="bTour" title="Auto tour (Space)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></button>
 </div>
 
 <div class="cue" id="cue"><span>SCROLL</span><i></i></div>
-<div class="progress"><i id="progBar"></i><em id="progTruck"></em></div>
+<div class="progress"><i id="progBar"></i></div>
 
 <main id="top">
 <!-- =================================================== -->
@@ -55,23 +55,12 @@
 <section id="track">
  <div id="stage">
 
-  <!-- intro sky gradient (matches the video's first frame) -->
   <div id="introSky"></div>
 
   <!-- HERO -->
   <div class="hero" id="hero">
     <div class="hero-photo" id="heroPhoto">
-      <svg viewBox="0 0 240 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <defs>
-          <linearGradient id="terr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5f7a46"/><stop offset=".5" stop-color="#a8a066"/><stop offset="1" stop-color="#6e6a45"/></linearGradient>
-        </defs>
-        <rect width="240" height="180" fill="url(#terr)"/>
-        <g opacity=".35" fill="#2f4326"><circle cx="30" cy="40" r="22"/><circle cx="200" cy="30" r="26"/><circle cx="60" cy="150" r="30"/><circle cx="210" cy="140" r="24"/></g>
-        <path d="M-10 150 C 50 130, 70 60, 120 80 S 200 150, 250 40" stroke="#3b3b3b" stroke-width="14" fill="none"/>
-        <path d="M-10 150 C 50 130, 70 60, 120 80 S 200 150, 250 40" stroke="#e8e4d2" stroke-width="1.4" stroke-dasharray="6 6" fill="none"/>
-        <path d="M120 80 C 110 120, 130 160, 170 190" stroke="#4a4a4a" stroke-width="8" fill="none"/>
-      </svg>
-      <img src="images/road.jpg" alt="Aerial view of a winding highway" onerror="this.remove()">
+      <img src="images/road.webp" alt="Aerial view of a multi-lane freight highway" decoding="async">
     </div>
     <h1 class="hero-h">
       <span class="g">WE MOVE<br>FREIGHT.</span><br>
@@ -84,12 +73,22 @@
     </div>
   </div>
 
-  <!-- GROUND SCENE: reach stacker + truck (SVG, camera = viewBox) -->
-  <svg id="ground" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-label="Reach stacker loading a container onto a My Build Archive truck"></svg>
+  <!-- YARD: real photos — reach stacker, containers, truck lane -->
+  <div id="yard" aria-label="Reach stacker loading a container onto a My Build Archive truck">
+    <div id="floor"></div>
+    <div class="shadow" id="shStack"></div><div class="shadow" id="shStacker"></div>
+    <img class="w" id="cRed"  src="images/cont-red.webp"  alt="" width="1221" height="733" decoding="async">
+    <img class="w" id="cBlue" src="images/cont-blue.webp" alt="" width="1221" height="733" decoding="async">
+    <img class="w" id="cGround" src="images/cont-grey.webp" alt="" width="1221" height="733" decoding="async">
+    <img class="w" id="stacker" src="images/stacker.webp" alt="Reach stacker" width="2400" height="1584" decoding="async">
+  </div>
 
-  <div class="spot" id="spot"></div>
-
-  <!-- SERVICES (dark scene overlay) -->
+  <!-- DARK ROAD + SERVICES -->
+  <div id="dark">
+    <img class="dark-photo" src="images/interchange.webp" alt="" decoding="async">
+    <div class="dark-shade"></div>
+    <div class="streaks" id="streaks"></div>
+  </div>
   <div class="services" id="services">
     <div class="svc-head"><span class="mono">01 — WHAT WE DO</span></div>
     <div class="svc-grid">
@@ -116,13 +115,12 @@
     </div>
     <a class="btn btn-light" href="#tools">Talk to our team →</a>
   </div>
+  <div class="spot" id="spot"></div>
 
-  <!-- OCEAN -->
+  <!-- OCEAN (revealed when the doors open) -->
   <div id="ocean">
-    <div class="waves w1"></div><div class="waves w2"></div>
-    <img class="ocean-photo" src="images/ocean.jpg" alt="" onerror="this.remove()">
+    <div class="ship-wrap" id="shipWrap"><img id="shipPhoto" src="images/ship.webp" alt="Container ship seen from above" decoding="async"></div>
     <canvas id="foam"></canvas>
-    <div class="ship-wrap" id="shipWrap"><svg id="ship" viewBox="0 0 140 760" aria-label="Container ship from above"></svg></div>
     <div class="ocean-copy" id="oceanCopy">
       <h2 class="rip" id="ripText">LOGISTICS<br>THAT WORKS<br>AS HARD AS<br>YOU DO.</h2>
       <h2 class="rip refl" aria-hidden="true">LOGISTICS<br>THAT WORKS<br>AS HARD AS<br>YOU DO.</h2>
@@ -136,8 +134,7 @@
   </div>
 
   <!-- DOORS: reliability -->
-  <div class="doors" id="doors">
-    <div class="swoosh" id="swoosh"><svg viewBox="0 0 800 400" preserveAspectRatio="none"><path d="M0 0H800V60C 520 40 420 140 330 260 280 330 200 400 0 400Z" fill="#0b0c0d"/></svg></div>
+  <div id="doors">
     <div class="panel pl" id="panelL">
       <div class="mono pnum">03 — RELIABILITY</div>
       <h2 class="rel"><span class="g">RELIABILITY</span><br>AT EVERY<br>MILESTONE</h2>
@@ -151,7 +148,7 @@
     <div class="gap" id="gap"><span class="handle"></span></div>
     <div class="panel pr" id="panelR">
       <div class="rt">
-        <svg class="rt-ic" viewBox="0 0 48 48"><circle cx="24" cy="22" r="8"/><path d="M24 44C12 32 8 26 8 20a16 16 0 0 1 32 0c0 6-4 12-16 24z"/></svg>
+        <div class="rt-photo"><img src="images/port.webp" alt="Container terminal at sunset" decoding="async"><span class="live"><i></i>LIVE</span></div>
         <h3>REAL-TIME<br>FREIGHT<br>TRACKING</h3>
         <p>Every pallet, container and trailer on a live map — with alerts before a delay becomes a problem, not after.</p>
         <ol class="miles">
@@ -164,11 +161,11 @@
 
   <!-- CLOUDS + PLANE -->
   <div id="clouds">
-    <img class="sky-photo" src="images/clouds.jpg" alt="" onerror="this.remove()">
+    <img class="sky-photo" id="skyPhoto" src="images/clouds.webp" alt="" decoding="async">
     <div class="cl-layer l1" id="cl1"></div>
+    <img class="tiny-ship" id="tinyShip" src="images/ship-cut.webp" alt="" width="185" height="509">
     <div class="cl-layer l2" id="cl2"></div>
-    <div class="tiny-ship" id="tinyShip"><svg viewBox="0 0 140 760"></svg></div>
-    <svg id="plane" viewBox="0 0 900 520" aria-label="Cargo aircraft from above"></svg>
+    <img id="plane" src="images/plane.webp" alt="Cargo aircraft flying through clouds" decoding="async">
     <div class="cl-layer l3" id="cl3"></div>
     <div class="sky-copy" id="skyCopy">
       <div class="mono">04 — AIR FREIGHT</div>
@@ -177,6 +174,16 @@
     </div>
   </div>
 
+  <!-- THE TRUCK crosses every scene -->
+  <div id="roadbar"><i></i></div>
+  <div id="truckBox">
+    <div class="tshadow" id="tShadow"></div>
+    <img id="truck" src="images/truck.webp" alt="My Build Archive truck" width="2400" height="1032" decoding="async">
+    <img id="truckL" src="images/truck-loaded.webp" alt="My Build Archive truck carrying a container" width="2400" height="1032" decoding="async">
+  </div>
+  <!-- held container rides above the truck while it is lowered -->
+  <div id="rigB" class="w"><img id="cHeld" src="images/cont-grey.webp" alt="" width="1221" height="733"></div>
+
   <canvas id="fx"></canvas>
   <div class="vignette"></div>
   <div class="bubble" id="bubble">BEEP BEEP!</div>
@@ -184,15 +191,30 @@
 </section>
 
 <!-- =================================================== -->
+<!--   FLEET (photo strip)                               -->
+<!-- =================================================== -->
+<section id="fleet" class="fleet">
+  <div class="wrap">
+    <div class="mono sec-k">05 — FLEET &amp; NETWORK</div>
+    <h2 class="sec-h">ONE TEAM.<br><span class="g">EVERY MODE.</span></h2>
+    <div class="fleet-grid">
+      <figure class="fc tilt"><img src="images/fleet.webp" alt="Long-haul tractor and flatbed trailer" loading="lazy"><figcaption><b>ROAD</b>Dedicated tractors, flatbeds and box fleets.</figcaption></figure>
+      <figure class="fc tilt"><img src="images/bow.webp" alt="Container ship bow through heavy seas" loading="lazy"><figcaption><b>SEA</b>Weekly sailings on every major trade lane.</figcaption></figure>
+      <figure class="fc tilt"><img src="images/port.webp" alt="Port terminal with cranes at sunset" loading="lazy"><figcaption><b>PORTS</b>Terminal handling, drayage and cross-dock.</figcaption></figure>
+      <figure class="fc tilt"><img src="images/interchange.webp" alt="Aerial view of a highway interchange" loading="lazy"><figcaption><b>NETWORK</b>Live routing across 4,000+ lanes.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- =================================================== -->
 <!--   TOOLS (normal scroll)                             -->
 <!-- =================================================== -->
 <section id="tools" class="tools">
   <div class="wrap">
-    <div class="mono sec-k">05 — TOOLS</div>
+    <div class="mono sec-k">06 — TOOLS</div>
     <h2 class="sec-h">PLAN IT.<br><span class="g">TRACK IT.</span></h2>
 
     <div class="tool-grid">
-      <!-- Quote -->
       <div class="card" id="quoteCard">
         <h3>Instant quote &amp; carbon estimate</h3>
         <div class="seg" id="modeSeg" role="tablist">
@@ -210,7 +232,6 @@
         <small>Demo estimate for illustration only — not a binding quote.</small>
       </div>
 
-      <!-- Tracker -->
       <div class="card" id="trackCard">
         <h3>Live shipment tracker</h3>
         <form id="trkForm"><input id="trkIn" value="MBA-2026-0042" spellcheck="false" aria-label="Tracking code"><button class="btn btn-sm">Track</button></form>
@@ -223,6 +244,7 @@
 </section>
 
 <section class="cta">
+  <img class="cta-sea" src="images/sea.webp" alt="" loading="lazy">
   <div class="wrap">
     <h2>READY TO MOVE?</h2>
     <p>Tell us what needs to get there. We'll own the outcome.</p>
@@ -234,7 +256,7 @@
   <div class="wrap">
     <div class="logo"><span class="mark"></span><b>MY BUILD</b> ARCHIVE</div>
     <div class="mono">© 2026 MY BUILD ARCHIVE · DEMO SITE</div>
-    <div class="mono">Shortcuts: SPACE tour · S sound · N night · R rain · H honk</div>
+    <div class="mono">Shortcuts: SPACE tour · S sound · R rain · H honk</div>
   </div>
 </footer>
 </main>

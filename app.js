@@ -1,11 +1,12 @@
 /* ==========================================================
-   MY BUILD ARCHIVE — scroll-driven freight experience
+   MY BUILD ARCHIVE — scroll-driven freight experience (v2, real photos)
    Vanilla JS, no dependencies.
    Scenes (P = 0..1 across the pinned track):
-     0.00 intro/hero  ·  0.07 reach stacker lifts container
-     0.17 truck arrives, container lowered  ·  0.285 truck drives
-     0.34 dark road + services  ·  0.455 reliability "doors"
-     0.60 ocean / container ship  ·  0.82 clouds + plane  ·  1.0 tools
+     .00 hero · .07 reach stacker lifts the container · .15 truck arrives
+     .225 container lowered onto the truck · .285 truck drives off, dark road wipes in
+     .39 services · .445 truck crosses again, "doors" wipe in · .565 doors open
+     .585 container ship zooms out · .80 truck crosses a third time, clouds wipe in
+     .86 plane through clouds · 1.0 loop → fleet + tools
    ========================================================== */
 (() => {
 'use strict';
@@ -19,12 +20,10 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const easeOut = t => 1 - Math.pow(1 - t, 3);
 const easeIn = t => t * t * t;
-const NS = 'http://www.w3.org/2000/svg';
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const stage = $('#stage'), track = $('#track');
-const ground = $('#ground');
 
 /* shared SVG filter for the ripple reflection */
 document.body.insertAdjacentHTML('beforeend',
@@ -33,165 +32,37 @@ document.body.insertAdjacentHTML('beforeend',
    <feDisplacementMap in="SourceGraphic" in2="t" scale="24"/></filter></svg>`);
 
 /* ==========================================================
-   1. GROUND SCENE — reach stacker, containers, truck
+   1. WORLD GEOMETRY (yard scene, design units)
    ========================================================== */
-function contBody(w, h, col, extra = '') {
-  let r = '';
-  for (let x = 12; x < w - 10; x += 10) r += `<rect x="${x}" y="9" width="3.4" height="${h - 18}" fill="rgba(0,0,0,.17)"/><rect x="${x + 3.4}" y="9" width="1.6" height="${h - 18}" fill="rgba(255,255,255,.2)"/>`;
-  return `<rect width="${w}" height="${h}" rx="3" fill="${col}"/>${r}
-    <rect width="${w}" height="7" fill="rgba(0,0,0,.26)"/><rect y="${h - 7}" width="${w}" height="7" fill="rgba(0,0,0,.34)"/>
-    <rect width="10" height="${h}" fill="rgba(0,0,0,.22)"/><rect x="${w - 10}" width="10" height="${h}" fill="rgba(0,0,0,.22)"/>${extra}`;
+const S = .2555;                       // container / stacker photo scale
+const TS = .3005;                      // truck photo scale (container on truck == held container size)
+const STK = { px: 2292, py: 1493, cx: -2, cy: 858 };   // stacker pivot (rear tyre contact) + held-container slot, in stacker px
+const TRK = { ground: 1027, cx: 40, cy: 48, W: 2400, H: 1032 };
+const PHI_CARRY = 4, PHI_PLACE = 1.2;
+const RX = (STK.cx - STK.px) * S, RY = (STK.cy - STK.py) * S;
+const rad = d => d * Math.PI / 180;
+// world position of the held container's top-left for stacker-left SX and boom angle phi (deg)
+function heldTL(SX, phi) {
+  const c = Math.cos(rad(phi)), s = Math.sin(rad(phi));
+  return { x: SX + STK.px * S + RX * c - RY * s, y: RX * s + RY * c };
 }
-function wheel(cx, cy, r, cls = '') {
-  let sp = '';
-  for (let i = 0; i < 5; i++) sp += `<rect x="-2.5" y="${-r * .5}" width="5" height="${r * .5}" fill="#59636a" transform="rotate(${i * 72})"/>`;
-  return `<g transform="translate(${cx} ${cy})"><circle r="${r}" fill="#15171a"/><circle r="${r * .82}" fill="#23272b"/><circle r="${r * .55}" fill="#a3acb1"/><g class="sp ${cls}">${sp}</g><circle r="${r * .14}" fill="#2b3237"/></g>`;
-}
-const GREY = '#bfc2ba', BLUE = '#2347b8', RED = '#e0442a';
-const cargoLabel = `<text x="150" y="53" text-anchor="middle" font-family="Archivo,Arial Black,sans-serif" font-weight="900" font-size="25" fill="#16181a" textLength="262" lengthAdjust="spacingAndGlyphs">MY BUILD ARCHIVE</text>
-  <rect x="26" y="20" width="26" height="4" rx="2" fill="#ff5a1f"/><text x="274" y="26" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#16181a" opacity=".6">MBAU 482016 · 4</text>`;
-
-ground.innerHTML = `
-<defs>
-  <linearGradient id="beam" x1="0" x2="1"><stop offset="0" stop-color="#fff3c4" stop-opacity=".75"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></linearGradient>
-  <linearGradient id="cabg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a737c"/><stop offset="1" stop-color="#3d444b"/></linearGradient>
-  <linearGradient id="tealg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2cc0e6"/><stop offset="1" stop-color="#1089a8"/></linearGradient>
-</defs>
-<rect id="band" x="-8000" y="1500" width="26000" height="6000" fill="#0b0c0d"/>
-<rect x="-8000" y="600" width="26000" height="3" fill="rgba(0,0,0,.22)"/>
-<g id="dashes" fill="rgba(255,255,255,.3)"></g>
-<g id="streaks" fill="rgba(255,255,255,.35)"></g>
-
-<!-- container stack -->
-<g id="stack">
-  <ellipse cx="860" cy="602" rx="470" ry="8" fill="rgba(0,0,0,.14)"/>
-  <g transform="translate(560 520)">${contBody(300, 80, BLUE, `<text x="150" y="50" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="15" fill="#fff" opacity=".8" letter-spacing="3">MBAU 774210</text><rect x="26" y="18" width="40" height="5" rx="2" fill="#ff5a1f"/>`)}</g>
-  <g transform="translate(870 520)">${contBody(300, 80, RED, `<text x="150" y="50" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="15" fill="#fff" opacity=".85" letter-spacing="3">MBAU 905533</text>`)}</g>
-</g>
-
-<!-- reach stacker -->
-<g id="stacker">
-  <ellipse cx="260" cy="602" rx="190" ry="8" fill="rgba(0,0,0,.18)"/>
-  <rect x="124" y="498" width="260" height="50" rx="9" fill="url(#tealg)"/>
-  <rect x="318" y="466" width="70" height="44" rx="6" fill="#0f7b99"/>
-  <path d="M132 500V452Q132 438 146 438H206Q218 438 222 450L238 500Z" fill="url(#tealg)"/>
-  <path d="M144 450H207L222 490H144Z" fill="#0d2a35" opacity=".88"/>
-  <path d="M148 454H178L172 486H148Z" fill="rgba(255,255,255,.12)"/>
-  <rect x="236" y="520" width="70" height="10" rx="3" fill="#0f6f8a"/>
-  <text x="252" y="528" font-family="Archivo,sans-serif" font-weight="900" font-size="9" fill="#e8fbff" letter-spacing="1.5">MBA</text>
-  <circle cx="350" cy="470" r="13" fill="#0b5a72"/>
-  ${wheel(180, 564, 38)}${wheel(335, 564, 38)}
-  <line id="cyl" x1="296" y1="498" x2="500" y2="400" stroke="#9ba5ab" stroke-width="9" stroke-linecap="round"/>
-  <line id="cyl2" x1="296" y1="498" x2="400" y2="450" stroke="#dfe5e8" stroke-width="5" stroke-linecap="round"/>
-  <g id="boom"><rect id="boomA" x="-24" y="-13" width="400" height="26" rx="6" fill="url(#tealg)"/><rect id="boomB" x="200" y="-9" width="400" height="18" rx="5" fill="#0b6985"/><rect id="boomC" x="0" y="-13" width="40" height="26" fill="#0d7592"/><circle id="boomTip" cx="600" cy="0" r="9" fill="#cfd8dc"/></g>
-  <circle cx="350" cy="470" r="7" fill="#cfd8dc"/>
-</g>
-
-<!-- spreader (follows boom tip) -->
-<g id="spread">
-  <line id="cab1" stroke="#222" stroke-width="2.4"/><line id="cab2" stroke="#222" stroke-width="2.4"/>
-  <circle r="8" fill="#cfd8dc"/>
-  <rect id="sfr" x="-150" y="28" width="300" height="9" rx="2" fill="#2b2f33"/>
-  <rect x="-150" y="24" width="14" height="14" fill="#ffb300"/><rect x="136" y="24" width="14" height="14" fill="#ffb300"/>
-</g>
-
-<!-- the cargo container (grey, branded) -->
-<g id="cargo" transform="translate(560 440)">${contBody(300, 80, GREY, cargoLabel)}</g>
-
-<!-- truck -->
-<g id="truckWrap" transform="translate(-900 655)"><g id="truck" class="truck">
-  <rect x="0" y="-8" width="520" height="8" rx="4" fill="rgba(0,0,0,.0)"/>
-  <ellipse cx="250" cy="0" rx="270" ry="8" fill="rgba(0,0,0,.35)"/>
-  <!-- trailer -->
-  <rect x="-4" y="-68" width="340" height="11" rx="3" fill="#2d3135"/>
-  <rect x="18" y="-58" width="270" height="9" fill="#1c1f22"/>
-  <rect x="-8" y="-64" width="9" height="24" rx="2" fill="#4b5157"/>
-  <rect x="238" y="-52" width="7" height="30" fill="#2f3438"/>
-  <rect x="40" y="-50" width="230" height="5" fill="#ff5a1f" opacity=".9"/>
-  ${wheel(62, -26, 26, 'tw')}${wheel(112, -26, 26, 'tw')}${wheel(162, -26, 26, 'tw')}
-  <!-- tractor -->
-  <rect x="300" y="-72" width="70" height="10" rx="3" fill="#3a4046"/>
-  <rect x="340" y="-62" width="150" height="15" fill="#1d2023"/>
-  <rect x="372" y="-58" width="50" height="22" rx="10" fill="#a3aab0"/>
-  <rect x="392" y="-212" width="7" height="68" rx="3" fill="#a9b0b5"/><rect x="404" y="-206" width="6" height="62" rx="3" fill="#8b9399"/>
-  <path d="M388 -62V-170Q388 -186 404 -186H450Q464 -186 471 -174L500 -128Q505 -118 505 -106V-62Z" fill="url(#cabg)" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/>
-  <path d="M402 -170H449L489 -126H402Z" fill="#0d1a22"/>
-  <path d="M408 -164H436L416 -132H408Z" fill="rgba(255,255,255,.14)"/>
-  <rect x="398" y="-120" width="62" height="3" fill="rgba(0,0,0,.35)"/>
-  <rect x="404" y="-112" width="30" height="10" rx="2" fill="rgba(255,255,255,.08)"/>
-  <text x="440" y="-84" font-family="Archivo,sans-serif" font-weight="900" font-size="11" fill="#ff7a45" letter-spacing="1.5" text-anchor="middle">MBA</text>
-  <rect x="494" y="-102" width="13" height="40" fill="#15171a"/>
-  <rect x="496" y="-96" width="11" height="9" rx="2" fill="#fff3c4"/>
-  <rect x="496" y="-80" width="11" height="3" fill="#ff5a1f"/>
-  <rect x="486" y="-64" width="24" height="6" rx="3" fill="#8e969b"/>
-  <rect x="382" y="-142" width="9" height="22" rx="3" fill="#2b3035"/>
-  ${wheel(372, -27, 27, 'tw')}${wheel(424, -27, 27, 'tw')}${wheel(478, -27, 27, 'tw')}
-  <polygon id="beamPoly" points="506,-90 1250,-230 1250,40 506,-70" fill="url(#beam)" opacity="0"/>
-</g></g>
-`;
-
-/* dashes + speed streaks */
-(() => {
-  let d = ''; for (let x = -2000; x < 12000; x += 150) d += `<rect x="${x}" y="738" width="76" height="6" rx="3"/>`;
-  $('#dashes').innerHTML = d + `<rect x="-8000" y="790" width="26000" height="3" fill="rgba(255,255,255,.18)"/>`;
-  let s = ''; for (let i = 0; i < 12; i++) s += `<rect data-i="${i}" height="2.5" rx="1.2" width="${160 + (i * 53) % 280}" y="${560 + (i * 41) % 230}"/>`;
-  $('#streaks').innerHTML = s;
-})();
+const PLACE_TOP = heldTL(0, PHI_PLACE);
+const YT = PLACE_TOP.y + (TRK.ground - TRK.cy) * TS;   // truck wheel line (world y)
+const TL_REST = 250;                                    // truck left x when loading
+const SX_PLACE = TL_REST + TRK.cx * TS - PLACE_TOP.x;   // stacker x when container is on the deck
+const SX_PICK = 1150;                                   // stacker x when it grips the grey box
+const GROUND_TL = heldTL(SX_PICK, 0);
 
 const el = {
-  band: $('#band'), boom: $('#boom'), boomA: $('#boomA'), boomB: $('#boomB'), boomC: $('#boomC'), boomTip: $('#boomTip'),
-  cyl: $('#cyl'), cyl2: $('#cyl2'), spread: $('#spread'), cab1: $('#cab1'), cab2: $('#cab2'),
-  cargo: $('#cargo'), truckWrap: $('#truckWrap'), truck: $('#truck'), beam: $('#beamPoly'),
-  stack: $('#stack'), stacker: $('#stacker'), dashes: $('#dashes'), streaks: $$('#streaks rect'),
-  tw: $$('#truck .tw')
+  yard: $('#yard'), floor: $('#floor'), stacker: $('#stacker'), cGround: $('#cGround'), cBlue: $('#cBlue'), cRed: $('#cRed'),
+  rigB: $('#rigB'), shStack: $('#shStack'), shStacker: $('#shStacker'),
+  truckBox: $('#truckBox'), truck: $('#truck'), truckL: $('#truckL'), tShadow: $('#tShadow'), roadbar: $('#roadbar'),
+  dark: $('#dark'), darkPhoto: $('.dark-photo'), streaks: $('#streaks')
 };
-const PIV = { x: 350, y: 470 };
 
 /* ==========================================================
-   2. SHIP, PLANE, CLOUDS (generated art)
+   2. SKY puffs (extra depth over the real cloud photo)
    ========================================================== */
-function buildShip(svg, detail = true) {
-  const r = rng(11), pal = ['#e53935', '#1e88e5', '#fdd835', '#43a047', '#ec407a', '#f4f4f4', '#fb8c00', '#8e24aa', '#00acc1', '#e53935', '#2740ff', '#f4f4f4', '#ff7043'];
-  let h = `<path d="M70 0C104 30 130 110 132 210L132 690Q132 748 112 756H28Q8 748 8 690L8 210C10 110 36 30 70 0Z" fill="#17384a"/>
-  <path d="M70 6C100 34 126 112 128 212L128 690Q128 744 110 752H30Q12 744 12 690L12 212C14 112 40 34 70 6Z" fill="#e53935" opacity=".9"/>
-  <path d="M70 14C98 42 122 116 124 212L124 690Q124 738 108 746H32Q16 738 16 690L16 212C18 116 42 42 70 14Z" fill="#285468"/>`;
-  const bay = (y0, cols, rows, x0) => {
-    for (let rr = 0; rr < rows; rr++) for (let c = 0; c < cols; c++) {
-      const col = pal[Math.floor(r() * pal.length)], x = x0 + c * 19.5, y = y0 + rr * 12;
-      h += `<rect x="${x}" y="${y}" width="18" height="11" fill="${col}"/><rect x="${x}" y="${y}" width="18" height="2" fill="rgba(0,0,0,.3)"/>` +
-        (detail ? `<rect x="${x + 2}" y="${y + 3.5}" width="14" height="0.9" fill="rgba(0,0,0,.18)"/><rect x="${x + 2}" y="${y + 6.3}" width="14" height="0.9" fill="rgba(0,0,0,.18)"/>` : '');
-    }
-  };
-  bay(146, 3, 4, 41.5);
-  for (let b = 0; b < 5; b++) { const y0 = 206 + b * 96; h += `<rect x="14" y="${y0 - 6}" width="112" height="3" fill="#0e2230"/><rect x="14" y="${y0 - 6}" width="4" height="3" fill="#ff5a1f"/><rect x="122" y="${y0 - 6}" width="4" height="3" fill="#ff5a1f"/>`; bay(y0, 5, 7, 22); }
-  h += `<rect x="38" y="684" width="64" height="54" rx="3" fill="#ececec"/><rect x="38" y="684" width="64" height="8" fill="#e53935"/>
-  <rect x="42" y="696" width="56" height="5" fill="#243245"/><rect x="42" y="706" width="56" height="5" fill="#243245"/>
-  <rect x="58" y="720" width="24" height="18" fill="#e53935"/><rect x="58" y="726" width="24" height="3" fill="#f4f4f4"/>
-  <text x="70" y="171" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="900" font-size="0" fill="#fff"></text>`;
-  svg.innerHTML = h;
-}
-buildShip($('#ship'));
-buildShip($('#tinyShip svg'), false);
-
-function buildPlane(svg) {
-  svg.innerHTML = `<defs>
-   <linearGradient id="fus" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef1f5"/><stop offset="1" stop-color="#c8d0da"/></linearGradient>
-   <linearGradient id="wng" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e6eaf0"/><stop offset="1" stop-color="#fbfcfe"/></linearGradient></defs>
-  <g>
-   <path d="M520 242L318 12L384 10L662 230Z" fill="url(#wng)" stroke="#c4ccd6" stroke-width="2"/>
-   <path d="M520 278L318 508L384 510L662 290Z" fill="url(#wng)" stroke="#c4ccd6" stroke-width="2"/>
-   <path d="M118 250L34 176L76 172L168 240Z" fill="url(#wng)" stroke="#c4ccd6" stroke-width="2"/>
-   <path d="M118 270L34 344L76 348L168 280Z" fill="url(#wng)" stroke="#c4ccd6" stroke-width="2"/>
-   <g fill="#aeb7c2" stroke="#7d8793" stroke-width="2"><rect x="500" y="150" width="86" height="26" rx="13" transform="rotate(-48 543 163)"/><rect x="430" y="82" width="86" height="26" rx="13" transform="rotate(-48 473 95)"/><rect x="500" y="344" width="86" height="26" rx="13" transform="rotate(48 543 357)"/><rect x="430" y="412" width="86" height="26" rx="13" transform="rotate(48 473 425)"/></g>
-   <path d="M44 246C300 232 640 228 786 240C852 246 884 255 888 260C884 265 852 274 786 280C640 292 300 288 44 274Z" fill="url(#fus)" stroke="#c4ccd6" stroke-width="2"/>
-   <path d="M60 262H800" stroke="#ff5a1f" stroke-width="6" opacity=".9"/>
-   <text x="300" y="256" font-family="Archivo,sans-serif" font-weight="900" font-size="17" letter-spacing="5" fill="#243245">MY BUILD ARCHIVE · AIR CARGO</text>
-   <path d="M796 248Q810 260 796 272" fill="none" stroke="#10161d" stroke-width="5" stroke-linecap="round"/>
-   <path d="M806 252Q816 260 806 268" fill="none" stroke="#10161d" stroke-width="3" stroke-linecap="round"/>
-  </g>`;
-}
-buildPlane($('#plane'));
-
 function scatterClouds(layer, n, minS, maxS, seed, avoid) {
   const r = rng(seed); let h = '';
   for (let i = 0; i < n; i++) {
@@ -202,39 +73,36 @@ function scatterClouds(layer, n, minS, maxS, seed, avoid) {
   }
   layer.innerHTML = h;
 }
-scatterClouds($('#cl1'), 22, 380, 800, 3);
-scatterClouds($('#cl2'), 16, 360, 760, 8, [58, 84, 42, 80]);
-scatterClouds($('#cl3'), 8, 520, 980, 21, [0, 0, 0, 0]);
-
-/* water texture */
-(() => {
-  const tile = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='640'><filter id='f' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='0.007 0.024' numOctaves='3' seed='6' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.9 -0.82'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>`;
-  const u = `url("data:image/svg+xml;utf8,${tile.replace(/#/g, '%23').replace(/"/g, "'")}")`;
-  const w2 = $('.w2'); w2.style.backgroundImage = u; w2.style.backgroundSize = '640px 640px'; w2.style.opacity = '.8';
-})();
+scatterClouds($('#cl1'), 14, 380, 800, 3);
+scatterClouds($('#cl2'), 10, 360, 760, 8, [58, 84, 42, 80]);
+scatterClouds($('#cl3'), 7, 520, 980, 21, [0, 0, 0, 0]);
 
 /* ==========================================================
    3. SCROLL ENGINE
    ========================================================== */
 const heroEl = $('#hero'), introSky = $('#introSky'), services = $('#services'), svcs = $$('.svc'), spot = $('#spot');
-const doors = $('#doors'), panelL = $('#panelL'), panelR = $('#panelR'), gap = $('#gap'), swoosh = $('#swoosh');
-const ocean = $('#ocean'), shipWrap = $('#shipWrap'), oceanCopy = $('#oceanCopy'), oceanTags = $$('.tag'), oceanLabel = $('#oceanLabel');
-const clouds = $('#clouds'), plane = $('#plane'), tinyShip = $('#tinyShip'), skyCopy = $('#skyCopy');
+const doors = $('#doors'), panelL = $('#panelL'), panelR = $('#panelR'), gap = $('#gap');
+const ocean = $('#ocean'), shipWrap = $('#shipWrap'), shipPhoto = $('#shipPhoto'), oceanCopy = $('#oceanCopy'), oceanTags = $$('.tag'), oceanLabel = $('#oceanLabel');
+const clouds = $('#clouds'), plane = $('#plane'), tinyShip = $('#tinyShip'), skyCopy = $('#skyCopy'), skyPhoto = $('#skyPhoto');
 const cl1 = $('#cl1'), cl2 = $('#cl2'), cl3 = $('#cl3');
 const nav = $('.nav'), railEl = $('#rail'), cue = $('#cue'), progBar = $('#progBar');
 const statEls = $$('[data-count]');
 const miles = $$('.miles li');
 
-const state = { cur: 0, prev: 0, vel: 0, P: 0, night: false, rain: false, sound: false, tour: false, honks: 0, lastDrive: 0 };
-let maxScroll = 1, VW = innerWidth, VH = innerHeight;
-function measure() { VW = innerWidth; VH = innerHeight; maxScroll = Math.max(1, track.offsetHeight - VH); }
-addEventListener('resize', measure); measure();
-
-function setCam(cx, lift = 0) {
-  const r = VW / VH, Hv = Math.max(760, 950 / r), W = Hv * r, y0 = 655 - (.82 - lift) * Hv;
-  ground.setAttribute('viewBox', `${cx - W / 2} ${y0} ${W} ${Hv}`);
-  return { W, Hv, y0 };
+const state = { cur: 0, prev: 0, vel: 0, P: 0, rain: false, sound: false, tour: false, honks: 0, truckOn: false };
+let SIMG = 1000, maxScroll = 1, VW = innerWidth, VH = innerHeight, K = 1, GY = 400, WT = 600;
+function measure() {
+  VW = innerWidth; VH = innerHeight; maxScroll = Math.max(1, track.offsetHeight - VH);
+  K = Math.min(VH * .00105, VW / 880);
+  GY = VH * (VW < 760 ? .6 : .56);
+  WT = TRK.W * TS * K;
+  el.floor.style.setProperty('--fy', ((GY + (YT - 60) * K) / VH * 100) + '%');
+  sizeCanvas && sizeCanvas();
+  SIMG = VW > VH ? VH * 1.3 : Math.max(VH * 1.3, VW * 1.15);
+  shipPhoto.style.width = shipPhoto.style.height = SIMG + 'px';
+  plane.style.width = Math.min(VW * .9, 1250) + 'px';
 }
+addEventListener('resize', measure);
 const mouse = { x: .5, y: .5 };
 addEventListener('pointermove', e => {
   mouse.x = e.clientX / VW; mouse.y = e.clientY / VH;
@@ -250,139 +118,179 @@ function runStats() {
   });
 }
 
+/* place an image / box at a world position (top-left) and uniform world scale */
+let camX = 0;
+const sxOf = wx => VW / 2 + (wx - camX) * K;
+const syOf = wy => GY + wy * K;
+function placeW(node, wx, wy, u) { node.style.transform = `translate(${sxOf(wx)}px,${syOf(wy)}px) scale(${K * u})`; }
+/* shared transform for stacker + held container: rotate about the rear-tyre pivot */
+function rigTransform(SX, phi) {
+  const s = K * S, ox = STK.px, oy = STK.py;
+  const tlx = sxOf(SX), tly = syOf(-STK.py * S);
+  return { t: `translate(${tlx - ox * (1 - s)}px,${tly - oy * (1 - s)}px) rotate(${phi}deg) scale(${s})`, o: `${ox}px ${oy}px` };
+}
+
+const FADE_R = (node, pct) => { node.style.clipPath = `inset(0 ${(100 - clamp(pct) * 100).toFixed(2)}% 0 0)`; };
+
 function render(P, dt) {
   state.P = P;
   const velAbs = Math.abs(state.cur - state.prev);
   state.vel = lerp(state.vel, velAbs, .15);
 
   /* --- intro / hero --- */
-  introSky.style.opacity = 1 - seg(P, .0, .045);
+  introSky.style.opacity = clamp(1 - seg(P, .0, .045) + seg(P, .975, .998));
   const hOut = seg(P, .05, .11);
   heroEl.style.opacity = 1 - seg(P, .065, .11);
   heroEl.style.transform = `translateY(${-hOut * 28}vh)`;
   heroEl.style.visibility = P > .12 ? 'hidden' : 'visible';
   cue.style.opacity = 1 - seg(P, 0, .03);
 
-  /* --- ground scene --- */
-  const gOn = P > .04 && P < .535;
-  ground.style.visibility = gOn ? 'visible' : 'hidden';
-  if (gOn) {
-    ground.style.opacity = seg(P, .045, .085) * (1 - seg(P, .515, .53));
-    const t1 = ease(seg(P, .07, .11)), t2 = ease(seg(P, .11, .13)), t3 = ease(seg(P, .13, .17)),
-      t4 = ease(seg(P, .17, .22)), t5 = ease(seg(P, .22, .26)), t6 = ease(seg(P, .26, .285));
-    let tx = lerp(600, 710, t1), ty = lerp(330, 380, t1);
-    ty = lerp(ty, 404, t2); ty = lerp(ty, 190, t3);
-    tx = lerp(tx, 1000, t4); ty -= 46 * Math.sin(Math.PI * t4);
-    ty = lerp(ty, 477, t5); ty = lerp(ty, 205, t6);
-    // boom
-    const dx = tx - PIV.x, dy = PIV.y - ty, L = Math.hypot(dx, dy), ang = Math.atan2(dy, dx) * 180 / Math.PI;
-    el.boom.setAttribute('transform', `translate(${PIV.x} ${PIV.y}) rotate(${-ang})`);
-    el.boomA.setAttribute('width', Math.min(L + 24, 360));
-    el.boomB.setAttribute('x', 160); el.boomB.setAttribute('width', Math.max(10, L - 150));
-    el.boomTip.setAttribute('cx', L);
-    const ux = dx / L, uy = -dy / L; // unit vector in world
-    el.cyl.setAttribute('x2', PIV.x + ux * L * .32 - uy * 0); el.cyl.setAttribute('y2', PIV.y + uy * L * .32 + 14);
-    el.cyl2.setAttribute('x2', PIV.x + ux * L * .2); el.cyl2.setAttribute('y2', PIV.y + uy * L * .2 + 12);
-    // spreader
-    el.spread.setAttribute('transform', `translate(${tx} ${ty})`);
-    el.cab1.setAttribute('x1', 0); el.cab1.setAttribute('y1', 0); el.cab1.setAttribute('x2', -138); el.cab1.setAttribute('y2', 28);
-    el.cab2.setAttribute('x1', 0); el.cab2.setAttribute('y1', 0); el.cab2.setAttribute('x2', 138); el.cab2.setAttribute('y2', 28);
-    // truck
-    const arrive = lerp(-900, 835, easeOut(seg(P, .17, .24)));
-    const drive = 4200 * ease(seg(P, .285, .5));
-    const rearX = arrive + drive;
-    const bounce = P > .285 ? Math.sin(performance.now() / 55) * Math.min(1.4, state.vel * .3 + .2) : 0;
-    el.truckWrap.setAttribute('transform', `translate(${rearX} ${655 + bounce})`);
-    const wdeg = (rearX / 26) * 57.3;
-    el.tw.forEach(w => w.setAttribute('transform', `rotate(${wdeg})`));
-    // cargo
-    if (P >= .26) el.cargo.setAttribute('transform', `translate(${rearX + 15} ${513 + bounce})`);
-    else if (t2 >= 1) el.cargo.setAttribute('transform', `translate(${tx - 150} ${ty + 36})`);
-    else el.cargo.setAttribute('transform', 'translate(560 440)');
-    // camera
-    const camX = lerp(700, 1000, ease(seg(P, .17, .23))) + drive + 85 * ease(seg(P, .285, .33)) + (mouse.x - .5) * 36;
-    const cam = setCam(camX, .36 * ease(seg(P, .33, .40)) * (1 - ease(seg(P, .46, .5))));
-    // dark flood
-    const flood = ease(seg(P, .31, .385));
-    el.band.setAttribute('y', lerp(lerp(1500, 625, ease(seg(P, .165, .215))), cam.y0 - 80, flood));
-    // dashes parallax: fine as world objects; streaks
-    const sv = clamp(state.vel / 40) * (P > .285 ? 1 : 0) + (P > .3 && P < .48 ? .25 : 0);
-    el.streaks.forEach(s => { const i = +s.dataset.i, wrap = cam.W + 700; const x = ((i * 257 - drive * 2.2) % wrap + wrap) % wrap; s.setAttribute('x', camX - cam.W / 2 - 350 + x); s.style.opacity = clamp(sv) * (.25 + (i % 4) * .15); });
-    // headlight
-    const dark = flood;
-    el.beam.setAttribute('opacity', Math.max(state.night ? .95 : 0, dark * .55));
+  /* --- truck: one master variable, screen x of its rear --- */
+  const camEnd = 700;
+  const camStart = 1456;
+  const cam = lerp(camStart, camEnd, ease(seg(P, .13, .22)));
+  camX = cam + (mouse.x - .5) * 24 / K;
+  const bounce = (P > .285 ? Math.sin(performance.now() / 55) * Math.min(1.6, state.vel * .25 + .35) : 0);
+  let truckX = null, passP = 0, pass = 0;
+  const sxRest = VW / 2 + (TL_REST - camEnd) * K;
+  if (P >= .15 && P < .39) {
+    if (P < .285) {
+      const tl = lerp(-900, TL_REST, easeOut(seg(P, .15, .225)));
+      truckX = VW / 2 + (tl - cam) * K;
+    } else { pass = 1; passP = ease(seg(P, .285, .385)); truckX = lerp(sxRest, VW + 40, passP); }
+  } else if (P >= .445 && P < .535) { pass = 2; passP = ease(seg(P, .447, .53)); truckX = lerp(-WT - 40, VW + 40, passP); }
+  else if (P >= .80 && P < .885) { pass = 3; passP = ease(seg(P, .802, .875)); truckX = lerp(-WT - 40, VW + 40, passP); }
+
+  /* --- YARD --- */
+  const yOn = P > .04 && P < .39;
+  el.yard.style.visibility = yOn ? 'visible' : 'hidden';
+  if (yOn) {
+    el.yard.style.opacity = seg(P, .045, .09);
+    // stacker position + boom angle
+    let SX = lerp(2700, SX_PICK, easeOut(seg(P, .07, .125)));
+    SX = lerp(SX, SX_PLACE, ease(seg(P, .15, .215)));
+    SX += 1000 * easeIn(seg(P, .248, .29));
+    let phi = PHI_CARRY * ease(seg(P, .125, .15));
+    phi = lerp(phi, PHI_PLACE, ease(seg(P, .19, .225)));
+    const stkA = 1 - seg(P, .262, .288);
+    const rg = rigTransform(SX, phi);
+    el.stacker.style.transform = rg.t; el.stacker.style.transformOrigin = rg.o; el.stacker.style.opacity = stkA;
+    el.rigB.style.transform = rg.t; el.rigB.style.transformOrigin = rg.o;
+    const held = P >= .125 && P < .245;
+    el.rigB.style.display = held ? 'block' : 'none';
+    el.cGround.style.visibility = P < .125 ? 'visible' : 'hidden';
+    placeW(el.cGround, GROUND_TL.x, GROUND_TL.y, S);
+    // back-lane stack (blue over red)
+    const u2 = S * .82, hh = 733 * u2 * .985;
+    placeW(el.cRed, 1010, -60 - hh, u2);
+    placeW(el.cBlue, 1010, -60 - hh * 2 + 4, u2);
+    // soft ground shadows
+    const ss = el.shStacker; ss.style.transform = `translate(${sxOf(SX + 40)}px,${syOf(-44)}px) scale(${K * (640 / 100)},${K * .5})`; ss.style.width = '100px'; ss.style.height = '100px'; ss.style.opacity = stkA * .9;
+    const st = el.shStack; st.style.transform = `translate(${sxOf(960)}px,${syOf(-84)}px) scale(${K * 2.9},${K * .5})`; st.style.width = '100px'; st.style.height = '100px';
+  }
+
+  /* --- TRUCK element --- */
+  const tOn = truckX !== null;
+  el.truckBox.style.display = tOn ? 'block' : 'none';
+  state.truckOn = tOn;
+  el.roadbar.style.opacity = tOn ? (pass === 0 ? seg(P, .15, .18) : pass === 1 ? 1 - seg(P, .372, .39) : pass === 2 ? seg(P, .445, .456) * (1 - seg(P, .522, .535)) : seg(P, .8, .81) * (1 - seg(P, .87, .884))) : 0;
+  if (tOn) {
+    const topY = syOf(YT - TRK.ground * TS) + bounce;
+    el.truckBox.style.transform = `translate(${truckX}px,${topY}px)`;
+    const sc = `scale(${K * TS})`;
+    el.truck.style.transform = sc; el.truckL.style.transform = sc;
+    const loaded = P >= .245;
+    el.truck.style.opacity = loaded ? 0 : 1; el.truckL.style.opacity = loaded ? 1 : 0;
+    el.tShadow.style.width = el.tShadow.style.height = '100px';
+    el.tShadow.style.transform = `translate(${WT * .02}px,${(TRK.ground * TS - 6) * K}px) scale(${WT / 100 * .98},${K * .55})`;
+    const rb = syOf(YT) - 34 * K;
+    el.roadbar.style.top = rb + 'px'; el.roadbar.style.height = Math.max(0, VH - rb) + 'px';
+    el.roadbar.style.setProperty('--rx', (-(P * 24000) % 120) + 'px');
+  }
+
+  /* --- DARK ROAD (wipe #1 follows the truck's rear) --- */
+  const dOn = P > .3 && P < .54;
+  el.dark.style.visibility = dOn ? 'visible' : 'hidden';
+  if (dOn) {
+    const pct = P >= .385 ? 1 : (pass === 1 ? clamp(truckX * Math.sqrt(passP) / VW) : 0);
+    FADE_R(el.dark, pct);
+    const z = seg(P, .3, .5);
+    el.darkPhoto.style.transform = `scale(${1 + z * .12}) translateY(${-z * 2}%)`;
+    el.streaks.style.setProperty('--sx', (-(P * 30000) % 340) + 'px');
   }
 
   /* --- services --- */
-  const sv1 = seg(P, .375, .415), sv2 = 1 - seg(P, .455, .485);
+  const sv1 = seg(P, .39, .425), sv2 = 1 - seg(P, .452, .485);
   services.style.opacity = sv1 * sv2;
   services.style.visibility = (sv1 * sv2) > 0 ? 'visible' : 'hidden';
-  svcs.forEach((s, i) => { const k = ease(seg(P, .385 + i * .012, .42 + i * .012)); s.style.opacity = k; s.style.transform = `translateY(${(1 - k) * 36}px)`; });
+  svcs.forEach((s, i) => { const k = ease(seg(P, .395 + i * .012, .43 + i * .012)); s.style.opacity = k; s.style.transform = `translateY(${(1 - k) * 36}px)`; });
   spot.style.opacity = sv1 * sv2;
 
-  /* --- doors (reliability) --- */
-  const rise = ease(seg(P, .455, .505)), open = ease(seg(P, .565, .645));
-  const dOn = P > .45 && P < .66;
-  doors.style.visibility = dOn ? 'visible' : 'hidden';
-  doors.style.opacity = dOn ? 1 : 0;
-  if (dOn) {
-    const ty = (1 - rise) * 105;
-    panelL.style.transform = `translate(${-open * 102}%,${ty}%)`;
-    panelR.style.transform = `translate(${open * 102}%,${ty}%)`;
-    gap.style.transform = `translateY(${ty}%) scaleX(${1 - open * .6})`;
+  /* --- DOORS (wipe #2 follows the truck, then the doors slide apart) --- */
+  const open = ease(seg(P, .565, .645));
+  const drOn = P > .445 && P < .655;
+  doors.style.visibility = drOn ? 'visible' : 'hidden';
+  if (drOn) {
+    const pct = P >= .53 ? 1 : (pass === 2 ? clamp(truckX / VW) : 0);
+    FADE_R(doors, pct);
+    panelL.style.transform = `translateX(${-open * 102}%)`;
+    panelR.style.transform = `translateX(${open * 102}%)`;
+    gap.style.transform = `scaleX(${1 - open * .6})`;
     gap.style.opacity = 1 - open;
-    swoosh.style.transform = `translateX(${-seg(P, .50, .56) * 115}%)`;
-    swoosh.style.opacity = rise > 0 ? 1 - seg(P, .52, .56) : 0;
-    if (P > .51) runStats();
-    const mi = P > .56 ? 4 : P > .535 ? 3 : 2;
-    miles.forEach((m, i) => m.classList.toggle('on', i <= mi - 0));
+    if (P > .515) runStats();
+    const mi = P > .6 ? 4 : P > .575 ? 3 : 2;
+    miles.forEach((m, i) => m.classList.toggle('on', i <= mi));
   }
 
-  /* --- ocean --- */
-  const oOn = P > .54 && P < .9;
+  /* --- OCEAN --- */
+  const oOn = P > .535 && P < .9;
   ocean.style.visibility = oOn ? 'visible' : 'hidden';
   if (oOn) {
-    ocean.style.opacity = (seg(P, .54, .56)) * (1 - seg(P, .845, .895));
+    ocean.style.opacity = 1;
     const z = ease(seg(P, .585, .775));
-    const sc = lerp(3.6, .66, z), sy = lerp(-260, 10, z) * (VH / 900);
-    const base = Math.min(VH / 900, VW / 900 + .35);
-    shipWrap.style.transform = `translate(${(mouse.x - .5) * -14}px,${sy}px) scale(${sc * Math.max(.7, base)})`;
-    const wy = P * 7000;
-    $('.w1').style.backgroundPosition = `0 ${wy * .6}px`; $('.w2').style.backgroundPosition = `${wy * .1}px ${wy}px`;
-    const tOn = seg(P, .735, .775) * (1 - seg(P, .825, .85));
-    oceanCopy.style.opacity = tOn; oceanCopy.style.transform = `translateY(${-62 + (1 - tOn) * 6}%)`;
-    oceanTags.forEach((t, i) => { const k = seg(P, .765 + i * .012, .795 + i * .012) * (1 - seg(P, .83, .855)); t.style.opacity = k; });
+    const sc = lerp(2.5, .86, z), Simg = SIMG;
+    const sy = (1 - z) * .26 * Simg * sc;
+    shipWrap.style.transform = `translate(${(mouse.x - .5) * -14}px,${sy}px) scale(${sc})`;
+    const tOn2 = seg(P, .735, .775) * (1 - seg(P, .825, .85));
+    oceanCopy.style.opacity = tOn2; oceanCopy.style.transform = `translateY(${-62 + (1 - tOn2) * 6}%)`;
+    oceanTags.forEach((t, i) => { const k = seg(P, .765 + i * .012, .795 + i * .012) * (1 - seg(P, .825, .85)); t.style.opacity = k; });
     oceanLabel.style.opacity = seg(P, .62, .66) * (1 - seg(P, .8, .83));
-    state.oceanSc = sc * Math.max(.7, base); state.oceanSy = sy;
+    state.shipPx = Simg * sc; state.shipSy = sy;
   }
 
-  /* --- clouds + plane --- */
+  /* --- CLOUDS + PLANE (wipe #3 follows the truck) --- */
   const cOn = P > .8;
   clouds.style.visibility = cOn ? 'visible' : 'hidden';
   if (cOn) {
-    clouds.style.opacity = seg(P, .81, .86) * (1 - seg(P, .965, .995));
-    const u = ease(seg(P, .825, .955));
-    cl1.style.transform = `translateX(${-u * 14}%) scale(1.05)`;
-    cl2.style.transform = `translateX(${-u * 34}%)`;
-    cl3.style.transform = `translateX(${-u * 70}%) translateY(${u * 8}%)`;
-    const pw = plane.getBoundingClientRect().width || VW * .7;
-    plane.style.transform = `translate(${lerp(-pw * 1.05, VW * 1.05, u)}px,${lerp(VH * .12, VH * .34, u)}px) rotate(${lerp(-4, 9, u)}deg) scale(${lerp(1.25, .62, u)})`;
-    tinyShip.style.left = '70%'; tinyShip.style.top = '56%';
-    tinyShip.style.transform = `translateY(${-u * 40}px) rotate(8deg) scale(${lerp(1, 1.25, u)})`;
-    const sk = seg(P, .885, .915) * (1 - seg(P, .95, .97));
+    const pct = P >= .875 ? 1 : (pass === 3 ? clamp(truckX / VW) : 0);
+    FADE_R(clouds, pct);
+    clouds.style.opacity = 1 - seg(P, .965, .995);
+    const u = ease(seg(P, .84, .955));
+    skyPhoto.style.transform = `scale(${lerp(1.0, 1.45, u)}) translateY(${lerp(0, 3, u)}%)`;
+    cl1.style.transform = `translateX(${-u * 14}%) translateY(${u * 8}%) scale(1.05)`;
+    cl2.style.transform = `translateX(${-u * 34}%) translateY(${u * 14}%)`;
+    cl3.style.transform = `translateX(${-u * 70}%) translateY(${u * 30}%)`;
+    const pw = plane.offsetWidth || Math.min(VW * .9, 1250), ph = pw * 702 / 2325;
+    const s = lerp(.34, 1.0, easeOut(u));
+    const px = lerp(VW * .62, VW * .5, u) - pw / 2 + (mouse.x - .5) * 24, py = lerp(VH * .55, VH * .22, u) - ph / 2;
+    plane.style.transform = `translate(${px}px,${py}px) rotate(${lerp(-5, 2, u)}deg) scale(${s})`;
+    tinyShip.style.left = (VW * .3) + 'px'; tinyShip.style.top = (VH * .62) + 'px';
+    tinyShip.style.transform = `translateY(${-u * 40}px) rotate(${lerp(14, 8, u)}deg) scale(${lerp(1, 1.5, u)})`;
+    tinyShip.style.opacity = 1 - seg(P, .93, .96);
+    const sk = seg(P, .89, .92) * (1 - seg(P, .95, .97));
     skyCopy.style.opacity = sk; skyCopy.style.transform = `translateY(${(1 - sk) * 24}px)`;
   }
 
   /* --- chrome --- */
   progBar.style.width = (state.cur / (document.documentElement.scrollHeight - VH) * 100) + '%';
-  const darkUI = !state.night && ((P > .33 && P < .455) || (P > .6 && P < .85));
+  const darkUI = (P > .385 && P < .5) || (P > .6 && P < .97);
   nav.classList.toggle('dark', darkUI); railEl.classList.toggle('dark', darkUI);
   updateRail(P);
   updateAudio(P);
 }
 
 /* rail */
-const CHAPTERS = [['Intro', 0], ['Yard', .13], ['Truck', .25], ['Services', .42], ['Reliability', .53], ['Sea', .72], ['Air', .9]];
+const CHAPTERS = [['Intro', 0], ['Yard', .13], ['Truck', .24], ['Services', .41], ['Reliability', .56], ['Sea', .72], ['Air', .92]];
 railEl.innerHTML = CHAPTERS.map(([n, p], i) => `<a href="#" data-goto="${p}" data-i="${i}"><i></i><span>${n}</span></a>`).join('');
 let railIdx = -1;
 function updateRail(P) {
@@ -405,7 +313,7 @@ function smoothTo(y, ms) {
   const run = t => { const k = clamp((t - t0) / ms); scrollTo(0, lerp(y0, y, ease(k))); if (k < 1) anim.id = requestAnimationFrame(run); else anim = null; };
   anim = { id: requestAnimationFrame(run) };
 }
-$$('a[href="#tools"]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); stopTour(); smoothTo($('#tools').offsetTop - 10, 1800); }));
+$$('a[href="#tools"],a[href="#fleet"]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); stopTour(); smoothTo($(a.getAttribute('href')).offsetTop - 10, 1800); }));
 
 /* main loop */
 let lastT = performance.now();
@@ -418,6 +326,12 @@ function loop(t) {
   fxFrame(dt);
   requestAnimationFrame(loop);
 }
+
+/* fleet cards: pointer tilt */
+$$('.tilt').forEach(c => {
+  c.addEventListener('pointermove', e => { const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; c.style.transform = `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg) translateY(-4px)`; });
+  c.addEventListener('pointerleave', () => { c.style.transform = ''; });
+});
 
 /* ==========================================================
    4. FX CANVAS: rain, foam, confetti
@@ -440,25 +354,25 @@ function fxFrame(dt) {
     fctx.save(); fctx.translate(c.x, c.y); fctx.rotate(c.r); fctx.fillStyle = c.col; fctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h); fctx.fillStyle = 'rgba(0,0,0,.25)'; fctx.fillRect(-c.w / 2, -c.h / 2, c.w, 2); fctx.restore();
     if (c.life <= 0 || c.y > fx.height + 40) confetti.splice(i, 1);
   });
-  // foam around the ship
+  // foam around the ship (photo) — particles hugging the hull
   gctx.clearRect(0, 0, foam.width, foam.height);
-  if (ocean.style.visibility === 'visible' && +ocean.style.opacity > .05) {
-    const s = state.oceanSc || 1, cx = foam.width / 2 + (mouse.x - .5) * -14, cy = foam.height / 2 + (state.oceanSy || 0);
-    const n = Math.round(6 + 10 * Math.min(1, s)), hw = 60 * s, top = -372 * s, bot = 372 * s;
+  if (ocean.style.visibility === 'visible' && state.shipPx) {
+    const s = state.shipPx, cx = foam.width / 2 + (mouse.x - .5) * -14, cy = foam.height / 2 + (state.shipSy || 0);
+    const hw = .125 * s, top = -.352 * s, bot = .395 * s, vis = Math.min(1, s / 900);
+    const n = Math.round(5 + 9 * vis);
     for (let i = 0; i < n; i++) {
-      const side = Math.random() < .5 ? -1 : 1, yy = Math.random();
-      const y = lerp(top + 40 * s, bot, yy);
-      foamP.push({ x: cx + side * (hw * (.96 + Math.random() * .1)), y: cy + y, vx: side * (8 + Math.random() * 26) * s, vy: (70 + Math.random() * 120) * Math.min(1.4, s + .2), r: (2 + Math.random() * 5) * Math.min(s, 1.1), life: .9 + Math.random() * .9, max: 1.8 });
+      const side = Math.random() < .5 ? -1 : 1, y = lerp(top + .05 * s, bot, Math.random());
+      if (cy + y < -20 || cy + y > foam.height + 20) continue;
+      foamP.push({ x: cx + side * hw * (.98 + Math.random() * .08), y: cy + y, vx: side * (8 + Math.random() * 26) * vis, vy: (60 + Math.random() * 110) * vis, r: (1.5 + Math.random() * 3.5) * (.5 + vis), life: .9 + Math.random() * .9, max: 1.8 });
     }
-    for (let i = 0; i < 3; i++) { const a = (Math.random() - .5) * 2; foamP.push({ x: cx + a * hw * .6, y: cy + top + 28 * s, vx: a * 70 * s, vy: 140 * s, r: (3 + Math.random() * 5) * Math.min(s, 1.1), life: 1, max: 1.6 }); }
-    // stern wake
-    for (let i = 0; i < 6; i++) { const side = Math.random() < .5 ? -1 : 1; foamP.push({ x: cx + side * hw * .5, y: cy + bot, vx: side * (30 + Math.random() * 60) * s, vy: (120 + Math.random() * 90) * Math.min(1.2, s + .2), r: (3 + Math.random() * 6) * Math.min(s, 1.1), life: 1.4, max: 2 }); }
+    for (let i = 0; i < 3; i++) { const a = (Math.random() - .5) * 2; foamP.push({ x: cx + a * hw * .5, y: cy + top + .03 * s, vx: a * 60 * vis, vy: 120 * vis, r: (2 + Math.random() * 4) * (.5 + vis), life: 1, max: 1.6 }); }
+    for (let i = 0; i < 5; i++) { const side = Math.random() < .5 ? -1 : 1; foamP.push({ x: cx + side * hw * .45, y: cy + bot, vx: side * (30 + Math.random() * 60) * vis, vy: (100 + Math.random() * 80) * vis, r: (2 + Math.random() * 5) * (.5 + vis), life: 1.4, max: 2 }); }
     for (let i = foamP.length - 1; i >= 0; i--) {
       const p = foamP[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .985;
       if (p.life <= 0) { foamP.splice(i, 1); continue; }
-      gctx.fillStyle = `rgba(255,255,255,${clamp(p.life / p.max) * .5})`; gctx.beginPath(); gctx.arc(p.x, p.y, p.r * (1 + (1 - p.life / p.max) * .6), 0, 6.283); gctx.fill();
+      gctx.fillStyle = `rgba(255,255,255,${clamp(p.life / p.max) * .42})`; gctx.beginPath(); gctx.arc(p.x, p.y, p.r * (1 + (1 - p.life / p.max) * .6), 0, 6.283); gctx.fill();
     }
-    if (foamP.length > 1800) foamP.splice(0, foamP.length - 1800);
+    if (foamP.length > 1400) foamP.splice(0, foamP.length - 1400);
   } else foamP.length = 0;
 }
 function burst(x, y, n = 90) {
@@ -481,7 +395,7 @@ function initAudio() {
 }
 function updateAudio(P) {
   if (!AC || !state.sound) return;
-  const t = AC.currentTime, truck = (P > .17 && P < .49) ? 1 : 0.0, drive = seg(P, .285, .35) * (1 - seg(P, .46, .5));
+  const t = AC.currentTime, truck = state.truckOn ? 1 : 0.0, drive = (P > .285 && P < .39 || P > .445 && P < .535 || P > .8 && P < .885) ? 1 : (P > .15 && P < .23 ? .5 : 0);
   eng.g.gain.setTargetAtTime(truck * (.05 + drive * .08) * (1 + clamp(state.vel / 30)), t, .1);
   eng.o.frequency.setTargetAtTime(44 + drive * 30 + clamp(state.vel / 30) * 24, t, .15);
   eng.lp.frequency.setTargetAtTime(220 + drive * 300, t, .15);
@@ -494,26 +408,24 @@ function honk() {
     const t = AC.currentTime, g = AC.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.22, t + .03); g.gain.setTargetAtTime(0, t + .45, .06); g.connect(AC.destination);
     [311, 392, 466].forEach(f => { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; o.connect(lp); lp.connect(g); o.start(t); o.stop(t + .9); });
   }
-  const r = el.cargo.getBoundingClientRect(), b = $('#bubble');
-  if (ground.style.visibility === 'visible' && r.width) {
-    b.style.left = clamp(r.right + r.width * .22, 80, VW - 80) + 'px'; b.style.top = Math.max(70, r.top - r.height * .1) + 'px';
+  const r = el.truck.getBoundingClientRect(), b = $('#bubble');
+  if (state.truckOn && r.width) {
+    b.style.left = clamp(r.left + r.width * .86, 80, VW - 80) + 'px'; b.style.top = Math.max(70, r.top + r.height * .02) + 'px';
     b.textContent = ['BEEP BEEP!', 'HONK!', 'MOVING FREIGHT!', 'OWN THE OUTCOME!'][state.honks % 4];
     b.animate([{ opacity: 0, transform: 'translate(-50%,-80%) scale(.6)' }, { opacity: 1, transform: 'translate(-50%,-110%) scale(1)', offset: .15 }, { opacity: 1, offset: .75 }, { opacity: 0, transform: 'translate(-50%,-130%) scale(1)' }], { duration: 1400, fill: 'forwards' });
-    el.truck.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-5px)' }, { transform: 'translateY(0)' }, { transform: 'translateY(-3px)' }, { transform: 'translateY(0)' }], { duration: 420 });
+    el.truckBox.animate([{ marginTop: '0px' }, { marginTop: '-6px' }, { marginTop: '0px' }, { marginTop: '-3px' }, { marginTop: '0px' }], { duration: 420 });
   }
   if (++state.honks % 5 === 0) burst(VW / 2, VH / 2, 120);
 }
-$('#truck').addEventListener('click', honk);
+$('#truck').addEventListener('click', honk); $('#truckL').addEventListener('click', honk);
 
 /* ==========================================================
    6. HUD buttons, keys, tour
    ========================================================== */
 function setPressed(id, on) { $(id).setAttribute('aria-pressed', on ? 'true' : 'false'); }
 function setSound(on) { state.sound = on; if (on) { initAudio(); AC && AC.resume(); } else if (AC) { eng.g.gain.value = sea.g.gain.value = wind.g.gain.value = 0; } setPressed('#bSound', on); }
-function setNight(on) { state.night = on; document.documentElement.classList.toggle('night', on); setPressed('#bNight', on); }
 function setRain(on) { state.rain = on; setPressed('#bRain', on); }
 $('#bSound').onclick = () => setSound(!state.sound);
-$('#bNight').onclick = () => setNight(!state.night);
 $('#bRain').onclick = () => setRain(!state.rain);
 $('#bTour').onclick = () => state.tour ? stopTour() : startTour();
 $('#heroTour').onclick = e => { e.preventDefault(); startTour(); };
@@ -523,7 +435,7 @@ function startTour() {
   let last = performance.now();
   const step = t => {
     if (!state.tour) return; const dt = (t - last) / 1000; last = t;
-    const P = scrollY / maxScroll; // slow down for key beats
+    const P = scrollY / maxScroll;
     let v = 1; if (P > .12 && P < .3) v = .8; if (P > .56 && P < .65) v = .8; if (P > .74 && P < .82) v = .7;
     scrollTo(0, scrollY + dt * VH * .55 * v);
     if (scrollY >= maxScroll - 2) { stopTour(); return; }
@@ -538,13 +450,11 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === ' ' && !e.target.closest('button,a')) { e.preventDefault(); state.tour ? stopTour() : startTour(); }
   else if (k === 's') setSound(!state.sound);
-  else if (k === 'n') setNight(!state.night);
   else if (k === 'r') setRain(!state.rain);
   else if (k === 'h') honk();
   else if (['arrowdown', 'arrowup', 'pagedown', 'pageup'].includes(k)) stopTour();
 });
 $('#ctaBtn').addEventListener('click', e => { const r = e.target.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, 140);  });
-/* fx canvas needs to be visible over page content for CTA confetti */
 document.body.appendChild(fx);
 
 /* ==========================================================
@@ -611,5 +521,5 @@ document.body.appendChild(fx);
 })();
 
 /* expose for debugging / screenshots */
-window.__mba = { goto, state, render };
+window.__mba = { goto, state, render, get K() { return K; }, get camX() { return camX; } };
 })();
